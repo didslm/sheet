@@ -93,6 +93,10 @@ export default function UniverSheet({ sheetId, partyHost }: { sheetId: string; p
         }
       };
 
+      const publishCellAt = (row: number, column: number) => {
+        publishRange(worksheet.getRange(row, column, 1, 1));
+      };
+
       const publishRange = (range: ReturnType<typeof worksheet.getRange>) => {
         const { startRow, startColumn } = range.getRange();
         const grid = range.getCellDataGrid();
@@ -122,6 +126,18 @@ export default function UniverSheet({ sheetId, partyHost }: { sheetId: string; p
 
         const { effectedRanges } = event as { effectedRanges: Array<ReturnType<typeof worksheet.getRange>> };
         effectedRanges.forEach((range) => publishRange(range));
+      });
+
+      const onSheetEditEnded: IDisposable = univerAPI.addEvent(univerAPI.Event.SheetEditEnded, (event) => {
+        if (applyingRemoteRef.current) return;
+
+        const { row, column, isConfirm } = event as { row: number; column: number; isConfirm: boolean };
+        if (!isConfirm) return;
+
+        window.setTimeout(() => {
+          if (disposed || applyingRemoteRef.current) return;
+          publishCellAt(row, column);
+        }, 0);
       });
 
       const handleCellStateChange = (event: Y.YMapEvent<string>, transaction: Y.Transaction) => {
@@ -165,6 +181,7 @@ export default function UniverSheet({ sheetId, partyHost }: { sheetId: string; p
         provider.off('sync', handleInitialSync);
         cellState.unobserve(handleCellStateChange);
         onSheetValueChanged.dispose();
+        onSheetEditEnded.dispose();
         provider.destroy();
         ydoc.destroy();
         univer.dispose();
