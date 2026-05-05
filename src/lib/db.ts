@@ -1,12 +1,18 @@
 import { neon } from '@neondatabase/serverless';
 
-const url = process.env.DATABASE_URL;
-if (!url) {
-  // We throw lazily so build-time env-less analysis doesn't crash.
-  console.warn('[db] DATABASE_URL is not set');
+function getDatabaseUrl() {
+  const url = process.env.DATABASE_URL?.trim();
+
+  if (!url) {
+    throw new Error('DATABASE_URL is not set');
+  }
+
+  return url;
 }
 
-export const sql = neon(url ?? 'postgres://invalid');
+export const sql = ((strings: TemplateStringsArray, ...params: unknown[]) => {
+  return neon(getDatabaseUrl())(strings, ...params);
+}) as ReturnType<typeof neon>;
 
 export async function ensureSchema() {
   await sql`
