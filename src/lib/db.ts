@@ -1,4 +1,11 @@
-import { neon } from '@neondatabase/serverless';
+import { neon, neonConfig } from '@neondatabase/serverless';
+
+// Opt out of Next.js fetch caching: Neon's HTTP driver uses fetch under the
+// hood, and Next 14 caches successful fetches by default — which made stale
+// reads (e.g. an old sheet title) come back after writes.
+neonConfig.fetchEndpoint = neonConfig.fetchEndpoint;
+(neonConfig as unknown as { fetchFunction?: typeof fetch }).fetchFunction = (input, init) =>
+  fetch(input as RequestInfo, { ...init, cache: 'no-store' });
 
 function getDatabaseUrl() {
   const url = process.env.DATABASE_URL?.trim();

@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import { Sheet, PARTY_HOST, updateSheetTitle } from '@/lib/api';
 import type { ActivitySummary, PresenceSummary } from './UniverSheet';
 import styles from './Editor.module.css';
@@ -17,6 +18,7 @@ import {
 const UniverSheet = dynamic(() => import('./UniverSheet'), { ssr: false });
 
 export default function Editor({ sheet }: { sheet: Sheet }) {
+  const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [sheetTitle, setSheetTitle] = useState(sheet.title);
@@ -57,6 +59,7 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
       const { title } = await updateSheetTitle(sheet.id, normalized);
       setSheetTitle(title);
       setTitleDraft(title);
+      router.refresh();
       setActivities((current) => [
         {
           id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,

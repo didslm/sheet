@@ -192,6 +192,8 @@ export default function UniverSheet(
       const { UniverSheetsCorePreset } = await import('@univerjs/presets/preset-sheets-core');
       const sheetsCoreEnUS = (await import('@univerjs/presets/preset-sheets-core/locales/en-US')).default;
       const {
+        AddWorksheetMergeCommand,
+        AddWorksheetMergeAllCommand,
         DeleteWorksheetRangeThemeStyleCommand,
         DeltaColumnWidthCommand,
         DeltaRowHeightCommand,
@@ -227,6 +229,11 @@ export default function UniverSheet(
         SetWorksheetRowIsAutoHeightMutation,
         SetVerticalTextAlignCommand,
       } = await import('@univerjs/sheets');
+      const {
+        IMenuManagerService,
+        MenuItemType,
+        RibbonStartGroup,
+      } = await import('@univerjs/ui');
 
       const ydoc = new Y.Doc();
       const provider = new YPartyKitProvider(partyHost, sheetId, ydoc);
@@ -343,6 +350,28 @@ export default function UniverSheet(
         theme: defaultTheme,
         presets: [UniverSheetsCorePreset({ container: containerRef.current })],
       });
+
+      // Replace the merge dropdown with a one-click "merge all" button.
+      try {
+        const injector = (univer as unknown as { __getInjector(): { get<T>(id: unknown): T } }).__getInjector();
+        const menuManager = injector.get<{
+          mergeMenu(schema: Record<string, unknown>): void;
+        }>(IMenuManagerService);
+        menuManager.mergeMenu({
+          [RibbonStartGroup.LAYOUT]: {
+            [AddWorksheetMergeCommand.id]: {
+              menuItemFactory: () => ({
+                id: AddWorksheetMergeAllCommand.id,
+                type: MenuItemType.BUTTON,
+                icon: 'MergeAllSingle',
+                tooltip: 'toolbar.mergeCell.main',
+              }),
+            },
+          },
+        });
+      } catch (error) {
+        console.error('[UniverSheet] failed to override merge menu', error);
+      }
 
       const workbook = univerAPI.createWorkbook(initialWorkbookData as Parameters<typeof univerAPI.createWorkbook>[0]) as SerializableWorkbook;
       const worksheet = workbook.getActiveSheet();
