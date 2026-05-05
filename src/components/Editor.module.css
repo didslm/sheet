@@ -267,10 +267,14 @@
   flex: 0 0 320px;
   border-left: 1px solid var(--border-soft);
   background: var(--bg);
-  display: flex;
+  display: none;
   flex-direction: column;
   min-height: 0;
   order: 2;
+}
+
+.historySidebarOpen {
+  display: flex;
 }
 
 .historyHeader {

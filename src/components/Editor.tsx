@@ -4,6 +4,15 @@ import dynamic from 'next/dynamic';
 import { Sheet, PARTY_HOST, updateSheetTitle } from '@/lib/api';
 import type { ActivitySummary, PresenceSummary } from './UniverSheet';
 import styles from './Editor.module.css';
+import {
+  TableCellsIcon,
+  ClockIcon,
+  LinkIcon,
+  CheckIcon,
+  EllipsisVerticalIcon,
+  XMarkIcon,
+  PencilIcon,
+} from './icons';
 
 const UniverSheet = dynamic(() => import('./UniverSheet'), { ssr: false });
 
@@ -80,7 +89,9 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
     <div className={styles.shell}>
       <header className={styles.header}>
         <div className={styles.headerMain}>
-          <a href="/" className={styles.brand} aria-label="OpenSheets home">▦</a>
+          <a href="/" className={styles.brand} aria-label="OpenSheets home">
+            <TableCellsIcon width={20} height={20} stroke="#fff" strokeWidth={1.8} />
+          </a>
 
           <div className={styles.titleColumn}>
             <div className={styles.titleWrap}>
@@ -117,7 +128,7 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
               aria-label="Toggle activity history"
               title="Activity"
             >
-              <span aria-hidden="true">⏱</span>
+              <ClockIcon />
               <span className={`${styles.iconLabel} ${styles.hideMobile}`}>Activity</span>
             </button>
             <button
@@ -126,7 +137,7 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
               className={`${styles.iconButton} ${styles.shareButton} ${copied ? styles.copied : ''}`}
               title="Copy share link"
             >
-              <span aria-hidden="true">🔗</span>
+              {copied ? <CheckIcon /> : <LinkIcon />}
               <span className={styles.iconLabel}>{copied ? 'Copied' : 'Share'}</span>
             </button>
             <button
@@ -136,7 +147,7 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
               aria-label="More options"
               title="More"
             >
-              <span aria-hidden="true">⋮</span>
+              <EllipsisVerticalIcon />
             </button>
           </div>
         </div>
@@ -192,7 +203,7 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
               onClick={() => setHistoryOpen(false)}
               aria-label="Close activity panel"
             >
-              ×
+              <XMarkIcon />
             </button>
           </div>
           <div className={styles.historyList}>
@@ -267,7 +278,7 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
             onClick={copyShareLink}
           >
             <span>{copied ? 'Link copied' : 'Copy share link'}</span>
-            <span aria-hidden="true">🔗</span>
+            {copied ? <CheckIcon width={20} height={20} /> : <LinkIcon width={20} height={20} />}
           </button>
           <button
             type="button"
@@ -275,7 +286,7 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
             onClick={() => { setMenuOpen(false); setHistoryOpen((open) => !open); }}
           >
             <span>{historyOpen ? 'Hide activity' : 'Show activity'}</span>
-            <span aria-hidden="true">⏱</span>
+            <ClockIcon width={20} height={20} />
           </button>
           <button
             type="button"
@@ -283,7 +294,7 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
             onClick={() => { setMenuOpen(false); setTimeout(() => titleInputRef.current?.focus(), 100); }}
           >
             <span>Rename spreadsheet</span>
-            <span aria-hidden="true">✎</span>
+            <PencilIcon width={20} height={20} />
           </button>
         </div>
 

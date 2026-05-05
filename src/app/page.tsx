@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSheet } from '@/lib/api';
 import styles from './page.module.css';
+import { TableCellsIcon, ArrowRightIcon } from '@/components/icons';
 
 const TTL_CHOICES = [
   { value: 1, label: '1 day' },
@@ -33,7 +34,9 @@ export default function Home() {
     <main className={styles.page}>
       <header className={styles.topbar}>
         <div className={styles.brandLockup}>
-          <span className={styles.logo} aria-hidden="true">▦</span>
+          <span className={styles.logo} aria-hidden="true">
+            <TableCellsIcon width={20} height={20} stroke="#fff" strokeWidth={1.8} />
+          </span>
           <span className={styles.brand}>OpenSheets</span>
         </div>
         <nav className={styles.topRight}>
