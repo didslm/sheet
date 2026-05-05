@@ -1,0 +1,12 @@
+import { notFound } from 'next/navigation';
+import { getSheet } from '@/lib/api';
+import Editor from '@/components/Editor';
+
+export const dynamic = 'force-dynamic';
+
+export default async function SheetPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const sheet = await getSheet(id).catch(() => null);
+  if (!sheet) notFound();
+  return <Editor sheet={sheet} />;
+}
