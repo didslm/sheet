@@ -2,7 +2,7 @@
 import { useEffect, useRef } from 'react';
 import * as Y from 'yjs';
 import YPartyKitProvider from 'y-partykit/provider';
-import type { ICellData, IDisposable } from '@univerjs/core';
+import type { ICellData, IDisposable, IRange } from '@univerjs/core';
 import '@univerjs/presets/lib/styles/preset-sheets-core.css';
 
 const CELL_KEY_PREFIX = 'cell:';
@@ -41,6 +41,18 @@ export type PresenceSummary = {
 type RemoteHighlight = {
   signature: string;
   disposable: IDisposable;
+};
+
+type PublishableRange = {
+  getRange(): IRange;
+  getCellDataGrid(): Array<Array<ICellData | null | undefined | void>>;
+};
+
+type SheetCommandParams = {
+  unitId?: string;
+  subUnitId?: string;
+  range?: IRange | null;
+  ranges?: IRange[] | null;
 };
 
 function columnToA1(column: number) {
@@ -131,6 +143,29 @@ export default function UniverSheet(
       const { createUniver, LocaleType, merge, defaultTheme } = await import('@univerjs/presets');
       const { UniverSheetsCorePreset } = await import('@univerjs/presets/preset-sheets-core');
       const sheetsCoreEnUS = (await import('@univerjs/presets/preset-sheets-core/locales/en-US')).default;
+      const {
+        ResetBackgroundColorCommand,
+        ResetTextColorCommand,
+        SetBackgroundColorCommand,
+        SetBoldCommand,
+        SetBorderBasicCommand,
+        SetBorderColorCommand,
+        SetBorderCommand,
+        SetBorderPositionCommand,
+        SetBorderStyleCommand,
+        SetFontFamilyCommand,
+        SetFontSizeCommand,
+        SetHorizontalTextAlignCommand,
+        SetItalicCommand,
+        SetOverlineCommand,
+        SetStrikeThroughCommand,
+        SetStyleCommand,
+        SetTextColorCommand,
+        SetTextRotationCommand,
+        SetTextWrapCommand,
+        SetUnderlineCommand,
+        SetVerticalTextAlignCommand,
+      } = await import('@univerjs/sheets');
 
       if (disposed || !containerRef.current) return;
 
@@ -147,6 +182,29 @@ export default function UniverSheet(
       const provider = new YPartyKitProvider(partyHost, sheetId, ydoc);
       const cellState = ydoc.getMap<string>(`sheet:${sheetId}:cells`);
       const awareness = provider.awareness;
+      const styleSyncCommandIds = new Set([
+        ResetBackgroundColorCommand.id,
+        ResetTextColorCommand.id,
+        SetBackgroundColorCommand.id,
+        SetBoldCommand.id,
+        SetBorderBasicCommand.id,
+        SetBorderColorCommand.id,
+        SetBorderCommand.id,
+        SetBorderPositionCommand.id,
+        SetBorderStyleCommand.id,
+        SetFontFamilyCommand.id,
+        SetFontSizeCommand.id,
+        SetHorizontalTextAlignCommand.id,
+        SetItalicCommand.id,
+        SetOverlineCommand.id,
+        SetStrikeThroughCommand.id,
+        SetStyleCommand.id,
+        SetTextColorCommand.id,
+        SetTextRotationCommand.id,
+        SetTextWrapCommand.id,
+        SetUnderlineCommand.id,
+        SetVerticalTextAlignCommand.id,
+      ]);
       const localPresenceUser = getPresenceUser(ydoc.clientID);
       const applyingRemoteRef = { current: false };
       const initializedRef = { current: false };
@@ -281,7 +339,7 @@ export default function UniverSheet(
         publishRange(worksheet.getRange(row, column, 1, 1));
       };
 
-      const publishRange = (range: ReturnType<typeof worksheet.getRange>) => {
+      const publishRange = (range: PublishableRange) => {
         const { startRow, startColumn } = range.getRange();
         const grid = range.getCellDataGrid();
 
@@ -303,6 +361,44 @@ export default function UniverSheet(
             }
           }
         }, LOCAL_SYNC_ORIGIN);
+      };
+
+      const toWorksheetRange = (range: IRange) =>
+        worksheet.getRange(
+          range.startRow,
+          range.startColumn,
+          range.endRow - range.startRow + 1,
+          range.endColumn - range.startColumn + 1
+        );
+
+      const publishCurrentSelection = () => {
+        const selection = worksheet.getSelection();
+        const activeRanges = selection?.getActiveRangeList() ?? [];
+
+        if (activeRanges.length > 0) {
+          activeRanges.forEach((range) => publishRange(range));
+          return;
+        }
+
+        const activeRange = worksheet.getActiveRange();
+        if (activeRange) publishRange(activeRange);
+      };
+
+      const publishCommandRanges = (params?: SheetCommandParams) => {
+        const workbookId = workbook.getId();
+        const sheetId = worksheet.getSheetId();
+
+        if (params?.unitId && params.unitId !== workbookId) return;
+        if (params?.subUnitId && params.subUnitId !== sheetId) return;
+
+        const explicitRanges = [params?.range, ...(params?.ranges ?? [])].filter((range): range is IRange => Boolean(range));
+
+        if (explicitRanges.length > 0) {
+          explicitRanges.forEach((range) => publishRange(toWorksheetRange(range)));
+          return;
+        }
+
+        publishCurrentSelection();
       };
 
       const onSheetValueChanged: IDisposable = univerAPI.addEvent(univerAPI.Event.SheetValueChanged, (event) => {
@@ -328,6 +424,11 @@ export default function UniverSheet(
       const onSheetEditStarted: IDisposable = univerAPI.addEvent(univerAPI.Event.SheetEditStarted, (event) => {
         const { row, column } = event as { row: number; column: number };
         publishPresence({ row, column });
+      });
+
+      const onSheetCommandExecuted = workbook.onCommandExecuted((command) => {
+        if (applyingRemoteRef.current || !styleSyncCommandIds.has(command.id)) return;
+        publishCommandRanges(command.params as SheetCommandParams | undefined);
       });
 
       const handleCellStateChange = (event: Y.YMapEvent<string>, transaction: Y.Transaction) => {
@@ -386,6 +487,7 @@ export default function UniverSheet(
         onSheetValueChanged.dispose();
         onSheetEditEnded.dispose();
         onSheetEditStarted.dispose();
+        onSheetCommandExecuted.dispose();
         for (const highlight of remoteHighlights.values()) highlight.disposable.dispose();
         remoteHighlights.clear();
         onPresenceChangeRef.current?.({ activeCount: 0, editingCells: [] });
