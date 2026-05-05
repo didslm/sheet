@@ -6,6 +6,7 @@ import type { ICellData, IDisposable, IRange } from '@univerjs/core';
 import '@univerjs/presets/lib/styles/preset-sheets-core.css';
 
 const CELL_KEY_PREFIX = 'cell:';
+const SNAPSHOT_KEY = 'workbookSnapshot';
 const LOCAL_SYNC_ORIGIN = 'opensheets-univer-sync';
 const PRESENCE_STORAGE_KEY = 'opensheets-presence-user';
 const PRESENCE_COLORS = ['#0f766e', '#1d4ed8', '#9333ea', '#c2410c', '#be123c', '#4f46e5'];
@@ -53,6 +54,29 @@ type SheetCommandParams = {
   subUnitId?: string;
   range?: IRange | null;
   ranges?: IRange[] | null;
+};
+
+type SerializableWorkbook = {
+  save(): unknown;
+  getId(): string;
+  getActiveSheet(): {
+    getSheetId(): string;
+    getSelection(): {
+      getActiveRangeList(): PublishableRange[];
+    } | null;
+    getActiveRange(): PublishableRange | null;
+    getRange(row: number, column: number, numRows?: number, numColumns?: number): PublishableRange & {
+      getCell(): {
+        actualRow: number;
+        actualColumn: number;
+        isMerged: boolean;
+        isMergedMainCell: boolean;
+      };
+      setValue(value: unknown): void;
+      highlight(config: unknown, range: unknown): IDisposable;
+    };
+  };
+  onCommandExecuted(callback: (command: { id: string; params?: object }) => void): IDisposable;
 };
 
 function columnToA1(column: number) {
@@ -144,6 +168,9 @@ export default function UniverSheet(
       const { UniverSheetsCorePreset } = await import('@univerjs/presets/preset-sheets-core');
       const sheetsCoreEnUS = (await import('@univerjs/presets/preset-sheets-core/locales/en-US')).default;
       const {
+        DeleteWorksheetRangeThemeStyleCommand,
+        DeltaColumnWidthCommand,
+        DeltaRowHeightCommand,
         ResetBackgroundColorCommand,
         ResetTextColorCommand,
         SetBackgroundColorCommand,
@@ -153,34 +180,30 @@ export default function UniverSheet(
         SetBorderCommand,
         SetBorderPositionCommand,
         SetBorderStyleCommand,
+        SetColDataCommand,
+        SetColWidthCommand,
         SetFontFamilyCommand,
         SetFontSizeCommand,
         SetHorizontalTextAlignCommand,
         SetItalicCommand,
         SetOverlineCommand,
+        SetRowDataCommand,
+        SetRowHeightCommand,
         SetStrikeThroughCommand,
         SetStyleCommand,
         SetTextColorCommand,
         SetTextRotationCommand,
         SetTextWrapCommand,
         SetUnderlineCommand,
+        SetWorksheetDefaultStyleCommand,
+        SetWorksheetRangeThemeStyleCommand,
         SetVerticalTextAlignCommand,
       } = await import('@univerjs/sheets');
 
-      if (disposed || !containerRef.current) return;
-
-      const { univer, univerAPI } = createUniver({
-        locale: LocaleType.EN_US,
-        locales: { [LocaleType.EN_US]: merge({}, sheetsCoreEnUS) },
-        theme: defaultTheme,
-        presets: [UniverSheetsCorePreset({ container: containerRef.current })],
-      });
-
-      const workbook = univerAPI.createWorkbook({ id: sheetId, name: 'Sheet' });
-      const worksheet = workbook.getActiveSheet();
       const ydoc = new Y.Doc();
       const provider = new YPartyKitProvider(partyHost, sheetId, ydoc);
       const cellState = ydoc.getMap<string>(`sheet:${sheetId}:cells`);
+      const snapshotState = ydoc.getMap<string>(`sheet:${sheetId}:meta`);
       const awareness = provider.awareness;
       const styleSyncCommandIds = new Set([
         ResetBackgroundColorCommand.id,
@@ -205,10 +228,60 @@ export default function UniverSheet(
         SetUnderlineCommand.id,
         SetVerticalTextAlignCommand.id,
       ]);
+      const workbookSnapshotCommandIds = new Set([
+        ...styleSyncCommandIds,
+        SetColWidthCommand.id,
+        DeltaColumnWidthCommand.id,
+        SetRowHeightCommand.id,
+        DeltaRowHeightCommand.id,
+        SetWorksheetDefaultStyleCommand.id,
+        SetRowDataCommand.id,
+        SetColDataCommand.id,
+        SetWorksheetRangeThemeStyleCommand.id,
+        DeleteWorksheetRangeThemeStyleCommand.id,
+      ]);
       const localPresenceUser = getPresenceUser(ydoc.clientID);
       const applyingRemoteRef = { current: false };
       const initializedRef = { current: false };
       const remoteHighlights = new Map<number, RemoteHighlight>();
+
+      const waitForInitialSync = async () => {
+        if (provider.synced) return;
+
+        await new Promise<void>((resolve) => {
+          const handleSync = (isSynced: boolean) => {
+            if (!isSynced) return;
+            provider.off('sync', handleSync);
+            resolve();
+          };
+
+          provider.on('sync', handleSync);
+        });
+      };
+
+      await waitForInitialSync();
+      if (disposed || !containerRef.current) return;
+
+      let initialWorkbookData: { id: string; name: string } | Record<string, unknown> = { id: sheetId, name: 'Sheet' };
+      const serializedSnapshot = snapshotState.get(SNAPSHOT_KEY);
+
+      if (serializedSnapshot) {
+        try {
+          initialWorkbookData = JSON.parse(serializedSnapshot) as Record<string, unknown>;
+        } catch (error) {
+          console.error('[UniverSheet] failed to parse workbook snapshot', error);
+        }
+      }
+
+      const { univer, univerAPI } = createUniver({
+        locale: LocaleType.EN_US,
+        locales: { [LocaleType.EN_US]: merge({}, sheetsCoreEnUS) },
+        theme: defaultTheme,
+        presets: [UniverSheetsCorePreset({ container: containerRef.current })],
+      });
+
+      const workbook = univerAPI.createWorkbook(initialWorkbookData as Parameters<typeof univerAPI.createWorkbook>[0]) as SerializableWorkbook;
+      const worksheet = workbook.getActiveSheet();
 
       const toCellKey = (row: number, column: number) => `${CELL_KEY_PREFIX}${row}:${column}`;
       const publishPresence = (editing: EditingCell | null) => {
@@ -339,6 +412,14 @@ export default function UniverSheet(
         publishRange(worksheet.getRange(row, column, 1, 1));
       };
 
+      const publishWorkbookSnapshot = () => {
+        try {
+          snapshotState.set(SNAPSHOT_KEY, JSON.stringify(workbook.save()));
+        } catch (error) {
+          console.error('[UniverSheet] failed to serialize workbook snapshot', error);
+        }
+      };
+
       const publishRange = (range: PublishableRange) => {
         const { startRow, startColumn } = range.getRange();
         const grid = range.getCellDataGrid();
@@ -427,8 +508,18 @@ export default function UniverSheet(
       });
 
       const onSheetCommandExecuted = workbook.onCommandExecuted((command) => {
-        if (applyingRemoteRef.current || !styleSyncCommandIds.has(command.id)) return;
-        publishCommandRanges(command.params as SheetCommandParams | undefined);
+        if (applyingRemoteRef.current) return;
+
+        if (styleSyncCommandIds.has(command.id)) {
+          publishCommandRanges(command.params as SheetCommandParams | undefined);
+        }
+
+        if (!workbookSnapshotCommandIds.has(command.id)) return;
+
+        window.setTimeout(() => {
+          if (disposed || applyingRemoteRef.current) return;
+          publishWorkbookSnapshot();
+        }, 0);
       });
 
       const handleCellStateChange = (event: Y.YMapEvent<string>, transaction: Y.Transaction) => {
@@ -448,11 +539,9 @@ export default function UniverSheet(
         refreshPresenceUI();
       };
 
-      const handleInitialSync = (isSynced: boolean) => {
-        if (!isSynced || initializedRef.current || disposed) return;
+      const handleInitialSync = () => {
+        if (initializedRef.current || disposed) return;
         initializedRef.current = true;
-
-        if (cellState.size === 0) return;
 
         applyingRemoteRef.current = true;
         try {
@@ -472,16 +561,9 @@ export default function UniverSheet(
       publishPresence(null);
       cellState.observe(handleCellStateChange);
       awareness.on('change', handleAwarenessChange);
-      provider.on('sync', handleInitialSync);
-
-      if (provider.synced) {
-        handleInitialSync(true);
-      } else {
-        refreshPresenceUI();
-      }
+      handleInitialSync();
 
       cleanupRef.current = () => {
-        provider.off('sync', handleInitialSync);
         awareness.off('change', handleAwarenessChange);
         cellState.unobserve(handleCellStateChange);
         onSheetValueChanged.dispose();
