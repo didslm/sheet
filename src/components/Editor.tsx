@@ -2,19 +2,21 @@
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Sheet, PARTY_HOST, updateSheetTitle } from '@/lib/api';
-import type { PresenceSummary } from './UniverSheet';
+import type { ActivitySummary, PresenceSummary } from './UniverSheet';
 import styles from './Editor.module.css';
 
 const UniverSheet = dynamic(() => import('./UniverSheet'), { ssr: false });
 
 export default function Editor({ sheet }: { sheet: Sheet }) {
   const [copied, setCopied] = useState(false);
-  const [mobileMetaOpen, setMobileMetaOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [sheetTitle, setSheetTitle] = useState(sheet.title);
   const [titleDraft, setTitleDraft] = useState(sheet.title);
   const [titleSaving, setTitleSaving] = useState(false);
   const [titleError, setTitleError] = useState<string | null>(null);
   const [presence, setPresence] = useState<PresenceSummary>({ activeCount: 0, editingCells: [] });
+  const [activities, setActivities] = useState<ActivitySummary[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const url = typeof window !== 'undefined' ? window.location.href : '';
 
@@ -25,6 +27,13 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
     setSheetTitle(sheet.title);
     setTitleDraft(sheet.title);
   }, [sheet.title]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [menuOpen]);
 
   async function commitTitle(nextTitle?: string) {
     const normalized = (nextTitle ?? titleDraft).trim();
@@ -39,6 +48,16 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
       const { title } = await updateSheetTitle(sheet.id, normalized);
       setSheetTitle(title);
       setTitleDraft(title);
+      setActivities((current) => [
+        {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          label: 'Sheet renamed',
+          detail: title,
+          actor: 'You',
+          createdAt: Date.now(),
+        },
+        ...current,
+      ].slice(0, 8));
     } catch (error) {
       setTitleDraft(sheetTitle);
       setTitleError('Could not rename sheet');
@@ -47,12 +66,23 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
     }
   }
 
+  async function copyShareLink() {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      // ignore
+    }
+  }
+
   return (
     <div className={styles.shell}>
       <header className={styles.header}>
         <div className={styles.headerMain}>
           <div className={styles.brandLockup}>
-            <a href="/" className={styles.brand}>OpenSheets</a>
+            <a href="/" className={styles.brand} aria-label="OpenSheets home">OS</a>
+            <span className={styles.divider} aria-hidden="true" />
             <div className={styles.titleWrap}>
               <input
                 ref={titleInputRef}
@@ -64,9 +94,7 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
                 }}
                 onBlur={() => { void commitTitle(); }}
                 onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.currentTarget.blur();
-                  }
+                  if (event.key === 'Enter') event.currentTarget.blur();
                   if (event.key === 'Escape') {
                     setTitleDraft(sheetTitle);
                     event.currentTarget.blur();
@@ -75,6 +103,7 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
                 aria-label="Sheet title"
                 disabled={titleSaving}
                 spellCheck={false}
+                placeholder="Untitled sheet"
               />
               <button
                 type="button"
@@ -85,57 +114,198 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
               </button>
             </div>
           </div>
-          <div className={styles.mobileActions}>
-            <span className={styles.mobileStatus}>
-              {presence.activeCount} active
-            </span>
+
+          <div className={styles.headerActions}>
             <button
-              onClick={async () => { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-              className={`${styles.copyButton} ${styles.mobileCopyButton}`}
+              type="button"
+              className={styles.iconButton}
+              aria-pressed={historyOpen}
+              onClick={() => setHistoryOpen((open) => !open)}
+              aria-label="Toggle history"
             >
-              {copied ? 'Copied!' : 'Share'}
+              <span aria-hidden="true">◷</span>
+              <span className={`${styles.iconLabel} ${styles.hideMobile}`}>History</span>
             </button>
             <button
               type="button"
-              className={styles.detailsButton}
-              aria-expanded={mobileMetaOpen}
-              onClick={() => setMobileMetaOpen((open) => !open)}
+              onClick={copyShareLink}
+              className={`${styles.iconButton} ${styles.shareButton} ${copied ? styles.copied : ''}`}
             >
-              {mobileMetaOpen ? 'Hide details' : 'Show details'}
+              <span aria-hidden="true">↗</span>
+              <span className={styles.iconLabel}>{copied ? 'Copied' : 'Share'}</span>
+            </button>
+            <button
+              type="button"
+              className={styles.iconButton}
+              onClick={() => setMenuOpen(true)}
+              aria-label="Sheet info and details"
+            >
+              <span aria-hidden="true">⋯</span>
             </button>
           </div>
         </div>
-        <div className={`${styles.meta} ${mobileMetaOpen ? styles.metaOpen : ''}`}>
-          <span className={styles.muted}>
-            {presence.activeCount} active
+
+        <div className={styles.metaRow}>
+          <span className={styles.metaItem}>
+            <span className={styles.livePulse} aria-hidden="true" />
+            <span className={styles.metaValue}>{presence.activeCount}</span>
+            <span className={styles.metaLabel}>active</span>
           </span>
           {hasEditingPresence && (
-            <div className={styles.presenceRail}>
-              <div className={styles.presenceScroller}>
-              {presence.editingCells.map((entry) => (
-                <span
-                  key={entry.clientId}
-                  className={styles.presencePill}
-                >
-                  <span className={styles.presenceDot} style={{ background: entry.color }} />
-                  <span>{entry.name}{entry.isLocal ? ' (you)' : ''}: {entry.label}</span>
-                </span>
-              ))}
-              </div>
-            </div>
+            <span className={styles.presenceRail}>
+              <span className={styles.presenceScroller}>
+                {presence.editingCells.map((entry) => (
+                  <span key={entry.clientId} className={styles.presencePill}>
+                    <span className={styles.presenceDot} style={{ background: entry.color }} />
+                    <span>{entry.name}{entry.isLocal ? ' (you)' : ''} · {entry.label}</span>
+                  </span>
+                ))}
+              </span>
+            </span>
           )}
-          <span className={styles.muted}>Expires in {expiresIn} day(s)</span>
-          <button
-            onClick={async () => { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-            className={`${styles.copyButton} ${styles.desktopCopyButton}`}
-          >
-            {copied ? 'Copied!' : 'Copy share link'}
-          </button>
+          <span className={styles.metaItem} style={{ marginLeft: 'auto' }}>
+            <span className={styles.metaLabel}>Expires in</span>
+            <span className={styles.metaValue}>{expiresIn}d</span>
+          </span>
         </div>
+
         {titleError && <div className={styles.titleError}>{titleError}</div>}
       </header>
-      <div className={styles.editorFrame}>
-        <UniverSheet sheetId={sheet.id} partyHost={PARTY_HOST} onPresenceChange={setPresence} />
+
+      <div className={styles.workspace}>
+        <aside className={`${styles.historySidebar} ${historyOpen ? styles.historySidebarOpen : ''}`}>
+          <div className={styles.historyHeader}>
+            <div>
+              <div className={styles.historyEyebrow}>Field notes</div>
+              <div className={styles.historyTitle}>Recent changes</div>
+            </div>
+            <button
+              type="button"
+              className={styles.historyClose}
+              onClick={() => setHistoryOpen(false)}
+              aria-label="Close history"
+            >
+              ×
+            </button>
+          </div>
+          <div className={styles.historyList}>
+            {activities.length === 0 ? (
+              <p className={styles.historyEmpty}>Edits will trickle in here as the sheet changes.</p>
+            ) : (
+              activities.map((entry) => (
+                <article key={entry.id} className={styles.historyItem}>
+                  <div className={styles.historyItemTop}>
+                    <span className={styles.historyActor}>{entry.actor}</span>
+                    <span className={styles.historyTime}>{new Date(entry.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+                  </div>
+                  <div className={styles.historyItemLabel}>{entry.label}</div>
+                  <div className={styles.historyItemDetail}>{entry.detail}</div>
+                </article>
+              ))
+            )}
+          </div>
+        </aside>
+        <div className={styles.editorFrame}>
+          <UniverSheet
+            sheetId={sheet.id}
+            partyHost={PARTY_HOST}
+            onPresenceChange={setPresence}
+            onActivityChange={(entry) => setActivities((current) => [entry, ...current].slice(0, 8))}
+          />
+        </div>
+      </div>
+
+      {/* Mobile details bottom sheet */}
+      <div
+        className={`${styles.scrim} ${menuOpen ? styles.scrimOpen : ''}`}
+        onClick={() => setMenuOpen(false)}
+        aria-hidden="true"
+      />
+      <div
+        className={`${styles.sheet} ${menuOpen ? styles.sheetOpen : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Sheet details"
+      >
+        <div className={styles.sheetHandle} aria-hidden="true" />
+        <div className={styles.sheetHead}>
+          <span className={styles.sheetTitle}>Details</span>
+          <button type="button" className={styles.sheetClose} onClick={() => setMenuOpen(false)}>Close</button>
+        </div>
+
+        <div className={styles.sheetMeta}>
+          <div className={styles.sheetMetaRow}>
+            <span className={styles.sheetMetaLabel}>Active now</span>
+            <span className={styles.sheetMetaValue}>
+              <span className={styles.livePulse} aria-hidden="true" style={{ display: 'inline-block', marginRight: 8, verticalAlign: 'middle' }} />
+              {presence.activeCount}
+            </span>
+          </div>
+          <div className={styles.sheetMetaRow}>
+            <span className={styles.sheetMetaLabel}>Auto-deletes in</span>
+            <span className={styles.sheetMetaValue}>{expiresIn} day(s)</span>
+          </div>
+          <div className={styles.sheetMetaRow}>
+            <span className={styles.sheetMetaLabel}>Sheet ID</span>
+            <span className={styles.sheetMetaValue} style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12 }}>{sheet.id}</span>
+          </div>
+        </div>
+
+        {hasEditingPresence && (
+          <div className={styles.sheetPresenceList}>
+            {presence.editingCells.map((entry) => (
+              <span key={entry.clientId} className={styles.presencePill}>
+                <span className={styles.presenceDot} style={{ background: entry.color }} />
+                <span>{entry.name}{entry.isLocal ? ' (you)' : ''} · {entry.label}</span>
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className={styles.sheetActions}>
+          <button
+            type="button"
+            className={`${styles.sheetButton} ${styles.sheetButtonPrimary} ${copied ? styles.copied : ''}`}
+            onClick={copyShareLink}
+          >
+            <span>{copied ? 'Link copied' : 'Copy share link'}</span>
+            <span aria-hidden="true" style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 24 }}>↗</span>
+          </button>
+          <button
+            type="button"
+            className={styles.sheetButton}
+            onClick={() => { setMenuOpen(false); setHistoryOpen((open) => !open); }}
+          >
+            <span>{historyOpen ? 'Hide history' : 'Show history'}</span>
+            <span aria-hidden="true" style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 24 }}>◷</span>
+          </button>
+          <button
+            type="button"
+            className={styles.sheetButton}
+            onClick={() => { setMenuOpen(false); titleInputRef.current?.focus(); }}
+          >
+            <span>Rename sheet</span>
+            <span aria-hidden="true" style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 24 }}>✎</span>
+          </button>
+        </div>
+
+        <div className={styles.sheetActivity} style={{ marginTop: 18 }}>
+          <span className={styles.sheetMetaLabel}>Recent activity</span>
+          {activities.length === 0 ? (
+            <p className={styles.activityEmpty}>Nothing yet — edits will show up here.</p>
+          ) : (
+            activities.slice(0, 4).map((entry) => (
+              <article key={entry.id} className={styles.historyItem}>
+                <div className={styles.historyItemTop}>
+                  <span className={styles.historyActor}>{entry.actor}</span>
+                  <span className={styles.historyTime}>{new Date(entry.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+                </div>
+                <div className={styles.historyItemLabel}>{entry.label}</div>
+                <div className={styles.historyItemDetail}>{entry.detail}</div>
+              </article>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );

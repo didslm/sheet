@@ -39,6 +39,14 @@ export type PresenceSummary = {
   }>;
 };
 
+export type ActivitySummary = {
+  id: string;
+  label: string;
+  detail: string;
+  actor: string;
+  createdAt: number;
+};
+
 type RemoteHighlight = {
   signature: string;
   disposable: IDisposable;
@@ -155,13 +163,25 @@ function createPresenceSummary(states: Map<number, AwarenessPresenceState>, loca
 }
 
 export default function UniverSheet(
-  { sheetId, partyHost, onPresenceChange }: { sheetId: string; partyHost: string; onPresenceChange?: (summary: PresenceSummary) => void }
+  {
+    sheetId,
+    partyHost,
+    onPresenceChange,
+    onActivityChange,
+  }: {
+    sheetId: string;
+    partyHost: string;
+    onPresenceChange?: (summary: PresenceSummary) => void;
+    onActivityChange?: (entry: ActivitySummary) => void;
+  }
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cleanupRef = useRef<() => void>(() => {});
   const onPresenceChangeRef = useRef(onPresenceChange);
+  const onActivityChangeRef = useRef(onActivityChange);
 
   onPresenceChangeRef.current = onPresenceChange;
+  onActivityChangeRef.current = onActivityChange;
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -256,6 +276,18 @@ export default function UniverSheet(
       const applyingRemoteRef = { current: false };
       const initializedRef = { current: false };
       const remoteHighlights = new Map<number, RemoteHighlight>();
+      const emitActivity = (entry: Omit<ActivitySummary, 'id' | 'createdAt'>) => {
+        onActivityChangeRef.current?.({
+          ...entry,
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          createdAt: Date.now(),
+        });
+      };
+
+      const firstRangeLabel = (range: IRange | undefined | null) => {
+        if (!range) return 'sheet';
+        return toA1Label(range.startRow, range.startColumn);
+      };
 
       const waitForInitialSync = async () => {
         if (provider.synced) return;
@@ -497,7 +529,14 @@ export default function UniverSheet(
         if (applyingRemoteRef.current) return;
 
         const { effectedRanges } = event as { effectedRanges: Array<ReturnType<typeof worksheet.getRange>> };
-        effectedRanges.forEach((range) => publishRange(range));
+        effectedRanges.forEach((range) => {
+          publishRange(range);
+          emitActivity({
+            label: firstRangeLabel(range.getRange()),
+            detail: 'Cell content changed',
+            actor: localPresenceUser.name,
+          });
+        });
       });
 
       const onSheetEditEnded: IDisposable = univerAPI.addEvent(univerAPI.Event.SheetEditEnded, (event) => {
@@ -535,6 +574,19 @@ export default function UniverSheet(
 
       const handleCellStateChange = (event: Y.YMapEvent<string>, transaction: Y.Transaction) => {
         if (transaction.origin === LOCAL_SYNC_ORIGIN) return;
+
+        const changedKeys = Array.from(event.keysChanged)
+          .map((key) => parseCellKey(key))
+          .filter((value): value is { row: number; column: number } => Boolean(value));
+
+        if (changedKeys.length > 0 && initializedRef.current) {
+          const first = changedKeys[0];
+          emitActivity({
+            label: toA1Label(first.row, first.column),
+            detail: changedKeys.length > 1 ? `${changedKeys.length} cells synced` : 'Cell synced from collaborator',
+            actor: 'Collaborator',
+          });
+        }
 
         applyingRemoteRef.current = true;
         try {
