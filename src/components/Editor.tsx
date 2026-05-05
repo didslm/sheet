@@ -80,9 +80,9 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
     <div className={styles.shell}>
       <header className={styles.header}>
         <div className={styles.headerMain}>
-          <div className={styles.brandLockup}>
-            <a href="/" className={styles.brand} aria-label="OpenSheets home">OS</a>
-            <span className={styles.divider} aria-hidden="true" />
+          <a href="/" className={styles.brand} aria-label="OpenSheets home">▦</a>
+
+          <div className={styles.titleColumn}>
             <div className={styles.titleWrap}>
               <input
                 ref={titleInputRef}
@@ -103,15 +103,8 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
                 aria-label="Sheet title"
                 disabled={titleSaving}
                 spellCheck={false}
-                placeholder="Untitled sheet"
+                placeholder="Untitled spreadsheet"
               />
-              <button
-                type="button"
-                className={styles.renameButton}
-                onClick={() => titleInputRef.current?.focus()}
-              >
-                Rename
-              </button>
             </div>
           </div>
 
@@ -121,26 +114,29 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
               className={styles.iconButton}
               aria-pressed={historyOpen}
               onClick={() => setHistoryOpen((open) => !open)}
-              aria-label="Toggle history"
+              aria-label="Toggle activity history"
+              title="Activity"
             >
-              <span aria-hidden="true">◷</span>
-              <span className={`${styles.iconLabel} ${styles.hideMobile}`}>History</span>
+              <span aria-hidden="true">⏱</span>
+              <span className={`${styles.iconLabel} ${styles.hideMobile}`}>Activity</span>
             </button>
             <button
               type="button"
               onClick={copyShareLink}
               className={`${styles.iconButton} ${styles.shareButton} ${copied ? styles.copied : ''}`}
+              title="Copy share link"
             >
-              <span aria-hidden="true">↗</span>
+              <span aria-hidden="true">🔗</span>
               <span className={styles.iconLabel}>{copied ? 'Copied' : 'Share'}</span>
             </button>
             <button
               type="button"
               className={styles.iconButton}
               onClick={() => setMenuOpen(true)}
-              aria-label="Sheet info and details"
+              aria-label="More options"
+              title="More"
             >
-              <span aria-hidden="true">⋯</span>
+              <span aria-hidden="true">⋮</span>
             </button>
           </div>
         </div>
@@ -149,8 +145,9 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
           <span className={styles.metaItem}>
             <span className={styles.livePulse} aria-hidden="true" />
             <span className={styles.metaValue}>{presence.activeCount}</span>
-            <span className={styles.metaLabel}>active</span>
+            <span className={styles.metaLabel}>online</span>
           </span>
+
           {hasEditingPresence && (
             <span className={styles.presenceRail}>
               <span className={styles.presenceScroller}>
@@ -163,8 +160,9 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
               </span>
             </span>
           )}
+
           <span className={styles.metaItem} style={{ marginLeft: 'auto' }}>
-            <span className={styles.metaLabel}>Expires in</span>
+            <span className={styles.metaLabel}>Auto-deletes in</span>
             <span className={styles.metaValue}>{expiresIn}d</span>
           </span>
         </div>
@@ -173,24 +171,33 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
       </header>
 
       <div className={styles.workspace}>
+        <div className={styles.editorFrame}>
+          <UniverSheet
+            sheetId={sheet.id}
+            partyHost={PARTY_HOST}
+            onPresenceChange={setPresence}
+            onActivityChange={(entry) => setActivities((current) => [entry, ...current].slice(0, 8))}
+          />
+        </div>
+
         <aside className={`${styles.historySidebar} ${historyOpen ? styles.historySidebarOpen : ''}`}>
           <div className={styles.historyHeader}>
             <div>
-              <div className={styles.historyEyebrow}>Field notes</div>
+              <div className={styles.historyEyebrow}>Activity</div>
               <div className={styles.historyTitle}>Recent changes</div>
             </div>
             <button
               type="button"
               className={styles.historyClose}
               onClick={() => setHistoryOpen(false)}
-              aria-label="Close history"
+              aria-label="Close activity panel"
             >
               ×
             </button>
           </div>
           <div className={styles.historyList}>
             {activities.length === 0 ? (
-              <p className={styles.historyEmpty}>Edits will trickle in here as the sheet changes.</p>
+              <p className={styles.historyEmpty}>Edits will appear here as the sheet changes.</p>
             ) : (
               activities.map((entry) => (
                 <article key={entry.id} className={styles.historyItem}>
@@ -205,17 +212,8 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
             )}
           </div>
         </aside>
-        <div className={styles.editorFrame}>
-          <UniverSheet
-            sheetId={sheet.id}
-            partyHost={PARTY_HOST}
-            onPresenceChange={setPresence}
-            onActivityChange={(entry) => setActivities((current) => [entry, ...current].slice(0, 8))}
-          />
-        </div>
       </div>
 
-      {/* Mobile details bottom sheet */}
       <div
         className={`${styles.scrim} ${menuOpen ? styles.scrimOpen : ''}`}
         onClick={() => setMenuOpen(false)}
@@ -229,13 +227,13 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
       >
         <div className={styles.sheetHandle} aria-hidden="true" />
         <div className={styles.sheetHead}>
-          <span className={styles.sheetTitle}>Details</span>
-          <button type="button" className={styles.sheetClose} onClick={() => setMenuOpen(false)}>Close</button>
+          <span className={styles.sheetTitle}>Spreadsheet details</span>
+          <button type="button" className={styles.sheetClose} onClick={() => setMenuOpen(false)}>Done</button>
         </div>
 
         <div className={styles.sheetMeta}>
           <div className={styles.sheetMetaRow}>
-            <span className={styles.sheetMetaLabel}>Active now</span>
+            <span className={styles.sheetMetaLabel}>People online</span>
             <span className={styles.sheetMetaValue}>
               <span className={styles.livePulse} aria-hidden="true" style={{ display: 'inline-block', marginRight: 8, verticalAlign: 'middle' }} />
               {presence.activeCount}
@@ -247,7 +245,7 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
           </div>
           <div className={styles.sheetMetaRow}>
             <span className={styles.sheetMetaLabel}>Sheet ID</span>
-            <span className={styles.sheetMetaValue} style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12 }}>{sheet.id}</span>
+            <span className={styles.sheetMetaValue} style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12 }}>{sheet.id}</span>
           </div>
         </div>
 
@@ -269,27 +267,27 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
             onClick={copyShareLink}
           >
             <span>{copied ? 'Link copied' : 'Copy share link'}</span>
-            <span aria-hidden="true" style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 24 }}>↗</span>
+            <span aria-hidden="true">🔗</span>
           </button>
           <button
             type="button"
             className={styles.sheetButton}
             onClick={() => { setMenuOpen(false); setHistoryOpen((open) => !open); }}
           >
-            <span>{historyOpen ? 'Hide history' : 'Show history'}</span>
-            <span aria-hidden="true" style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 24 }}>◷</span>
+            <span>{historyOpen ? 'Hide activity' : 'Show activity'}</span>
+            <span aria-hidden="true">⏱</span>
           </button>
           <button
             type="button"
             className={styles.sheetButton}
-            onClick={() => { setMenuOpen(false); titleInputRef.current?.focus(); }}
+            onClick={() => { setMenuOpen(false); setTimeout(() => titleInputRef.current?.focus(), 100); }}
           >
-            <span>Rename sheet</span>
-            <span aria-hidden="true" style={{ fontFamily: 'Fraunces, serif', fontStyle: 'italic', fontSize: 24 }}>✎</span>
+            <span>Rename spreadsheet</span>
+            <span aria-hidden="true">✎</span>
           </button>
         </div>
 
-        <div className={styles.sheetActivity} style={{ marginTop: 18 }}>
+        <div className={styles.sheetActivity}>
           <span className={styles.sheetMetaLabel}>Recent activity</span>
           {activities.length === 0 ? (
             <p className={styles.activityEmpty}>Nothing yet — edits will show up here.</p>

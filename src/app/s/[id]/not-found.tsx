@@ -2,7 +2,7 @@ export default function NotFound() {
   return (
     <main
       style={{
-        maxWidth: 640,
+        maxWidth: 520,
         margin: '0 auto',
         padding: '120px 24px',
         textAlign: 'center',
@@ -10,50 +10,30 @@ export default function NotFound() {
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
-        gap: 18,
+        gap: 16,
       }}
     >
-      <p
-        style={{
-          fontSize: 11,
-          letterSpacing: '0.24em',
-          textTransform: 'uppercase',
-          color: 'var(--accent)',
-          fontWeight: 600,
-          margin: 0,
-        }}
-      >
-        404 · Vanished
-      </p>
-      <h1
-        style={{
-          fontFamily: 'Fraunces, serif',
-          fontWeight: 400,
-          fontSize: 'clamp(40px, 8vw, 72px)',
-          letterSpacing: '-0.03em',
-          lineHeight: 1,
-          margin: 0,
-        }}
-      >
-        Sheet not found <em style={{ color: 'var(--accent)' }}>or expired</em>.
+      <h1 style={{ fontSize: 28, fontWeight: 500, margin: 0, color: 'var(--text)' }}>
+        Sheet not found or expired
       </h1>
-      <p style={{ color: 'var(--ink-2)', fontSize: 17, lineHeight: 1.55, margin: 0 }}>
-        It either never existed or has quietly passed its TTL and been swept away.
+      <p style={{ color: 'var(--text-3)', fontSize: 15, lineHeight: 1.5, margin: 0 }}>
+        This spreadsheet either never existed or has passed its TTL and been deleted.
       </p>
-      <p style={{ marginTop: 12 }}>
+      <p style={{ marginTop: 8 }}>
         <a
           href="/"
           style={{
             display: 'inline-block',
-            padding: '14px 22px',
-            background: 'var(--ink)',
-            color: 'var(--paper)',
+            padding: '10px 22px',
+            background: 'var(--green)',
+            color: '#fff',
             textDecoration: 'none',
-            fontWeight: 600,
-            border: '1px solid var(--ink)',
+            fontWeight: 500,
+            borderRadius: 4,
+            boxShadow: 'var(--shadow-1)',
           }}
         >
-          ← Create a new one
+          Create a new spreadsheet
         </a>
       </p>
     </main>
