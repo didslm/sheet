@@ -46,7 +46,6 @@ type RemoteHighlight = {
 
 type PublishableRange = {
   getRange(): IRange;
-  getCellDataGrid(): Array<Array<ICellData | null | undefined | void>>;
 };
 
 type SheetCommandParams = {
@@ -60,6 +59,11 @@ type SerializableWorkbook = {
   save(): unknown;
   getId(): string;
   getActiveSheet(): {
+    getSheet(): {
+      getRange(range: IRange): {
+        getObjectValue(options?: { isIncludeStyle?: boolean }): ICellData | null | undefined | void;
+      };
+    };
     getSheetId(): string;
     getSelection(): {
       getActiveRangeList(): PublishableRange[];
@@ -282,6 +286,7 @@ export default function UniverSheet(
 
       const workbook = univerAPI.createWorkbook(initialWorkbookData as Parameters<typeof univerAPI.createWorkbook>[0]) as SerializableWorkbook;
       const worksheet = workbook.getActiveSheet();
+      const coreWorksheet = worksheet.getSheet();
 
       const toCellKey = (row: number, column: number) => `${CELL_KEY_PREFIX}${row}:${column}`;
       const publishPresence = (editing: EditingCell | null) => {
@@ -421,17 +426,15 @@ export default function UniverSheet(
       };
 
       const publishRange = (range: PublishableRange) => {
-        const { startRow, startColumn } = range.getRange();
-        const grid = range.getCellDataGrid();
+        const { startRow, startColumn, endRow, endColumn } = range.getRange();
 
         ydoc.transact(() => {
-          for (let rowOffset = 0; rowOffset < grid.length; rowOffset += 1) {
-            const row = grid[rowOffset];
-            if (!row) continue;
-
-            for (let columnOffset = 0; columnOffset < row.length; columnOffset += 1) {
-              const cell = row[columnOffset];
-              const key = toCellKey(startRow + rowOffset, startColumn + columnOffset);
+          for (let row = startRow; row <= endRow; row += 1) {
+            for (let column = startColumn; column <= endColumn; column += 1) {
+              const cell = coreWorksheet.getRange({ startRow: row, endRow: row, startColumn: column, endColumn: column }).getObjectValue({
+                isIncludeStyle: true,
+              });
+              const key = toCellKey(row, column);
 
               if (isEmptyCell(cell)) {
                 cellState.delete(key);
