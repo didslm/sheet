@@ -276,6 +276,7 @@ export default function UniverSheet(
       const applyingRemoteRef = { current: false };
       const initializedRef = { current: false };
       const remoteHighlights = new Map<number, RemoteHighlight>();
+      const activitySignatures = new Map<string, string>();
       const emitActivity = (entry: Omit<ActivitySummary, 'id' | 'createdAt'>) => {
         onActivityChangeRef.current?.({
           ...entry,
@@ -284,9 +285,28 @@ export default function UniverSheet(
         });
       };
 
-      const firstRangeLabel = (range: IRange | undefined | null) => {
-        if (!range) return 'sheet';
-        return toA1Label(range.startRow, range.startColumn);
+      const describeCellActivity = (cell: ICellData | null | undefined | void) => {
+        if (!cell || (cell.v == null && cell.f == null && cell.p == null && cell.s == null && cell.t == null && cell.si == null && cell.custom == null)) {
+          return { signature: 'empty', detail: 'Cleared cell' };
+        }
+
+        const signature = JSON.stringify([cell.v ?? null, cell.f ?? null, cell.p ?? null, cell.s ?? null, cell.t ?? null, cell.si ?? null, cell.custom ?? null]);
+        if (cell.f != null) return { signature, detail: `Formula: ${String(cell.f)}` };
+        if (cell.v != null) return { signature, detail: `Value: ${String(cell.v)}` };
+        if (cell.p != null) return { signature, detail: 'Formatting changed' };
+        return { signature, detail: 'Updated cell' };
+      };
+
+      const recordActivity = (row: number, column: number, actor: string, cell: ICellData | null | undefined | void) => {
+        const key = `${row}:${column}`;
+        const { signature, detail } = describeCellActivity(cell);
+        if (activitySignatures.get(key) === signature) return;
+        activitySignatures.set(key, signature);
+        emitActivity({
+          label: toA1Label(row, column),
+          detail,
+          actor,
+        });
       };
 
       const waitForInitialSync = async () => {
@@ -436,7 +456,7 @@ export default function UniverSheet(
         });
       };
 
-      const applySharedCell = (key: string, serialized: string | undefined) => {
+      const applySharedCell = (key: string, serialized: string | undefined, emitHistory = true) => {
         const position = parseCellKey(key);
         if (!position) return;
 
@@ -448,6 +468,7 @@ export default function UniverSheet(
         try {
           const cell = JSON.parse(serialized);
           worksheet.getRange(position.row, position.column).setValue(cell);
+          if (emitHistory) recordActivity(position.row, position.column, 'Collaborator', cell);
         } catch (error) {
           console.error('[UniverSheet] failed to parse remote cell payload', error);
         }
@@ -475,13 +496,16 @@ export default function UniverSheet(
                 isIncludeStyle: true,
               });
               const key = toCellKey(row, column);
+              const previous = cellState.get(key);
 
               if (isEmptyCell(cell)) {
-                cellState.delete(key);
+                if (previous !== undefined) cellState.delete(key);
                 continue;
               }
 
-              cellState.set(key, JSON.stringify(cell));
+              const next = JSON.stringify(cell);
+              if (previous === next) continue;
+              cellState.set(key, next);
             }
           }
         }, LOCAL_SYNC_ORIGIN);
@@ -529,14 +553,7 @@ export default function UniverSheet(
         if (applyingRemoteRef.current) return;
 
         const { effectedRanges } = event as { effectedRanges: Array<ReturnType<typeof worksheet.getRange>> };
-        effectedRanges.forEach((range) => {
-          publishRange(range);
-          emitActivity({
-            label: firstRangeLabel(range.getRange()),
-            detail: 'Cell content changed',
-            actor: localPresenceUser.name,
-          });
-        });
+        effectedRanges.forEach((range) => publishRange(range));
       });
 
       const onSheetEditEnded: IDisposable = univerAPI.addEvent(univerAPI.Event.SheetEditEnded, (event) => {
@@ -549,6 +566,9 @@ export default function UniverSheet(
         window.setTimeout(() => {
           if (disposed || applyingRemoteRef.current) return;
           publishCellAt(row, column);
+          recordActivity(row, column, 'You', coreWorksheet.getRange({ startRow: row, endRow: row, startColumn: column, endColumn: column }).getObjectValue({
+            isIncludeStyle: true,
+          }));
         }, 0);
       });
 
@@ -575,23 +595,10 @@ export default function UniverSheet(
       const handleCellStateChange = (event: Y.YMapEvent<string>, transaction: Y.Transaction) => {
         if (transaction.origin === LOCAL_SYNC_ORIGIN) return;
 
-        const changedKeys = Array.from(event.keysChanged)
-          .map((key) => parseCellKey(key))
-          .filter((value): value is { row: number; column: number } => Boolean(value));
-
-        if (changedKeys.length > 0 && initializedRef.current) {
-          const first = changedKeys[0];
-          emitActivity({
-            label: toA1Label(first.row, first.column),
-            detail: changedKeys.length > 1 ? `${changedKeys.length} cells synced` : 'Cell synced from collaborator',
-            actor: 'Collaborator',
-          });
-        }
-
         applyingRemoteRef.current = true;
         try {
           event.keysChanged.forEach((key) => {
-            applySharedCell(key, cellState.get(key));
+            applySharedCell(key, cellState.get(key), initializedRef.current);
           });
         } finally {
           applyingRemoteRef.current = false;
@@ -612,7 +619,16 @@ export default function UniverSheet(
             .filter(([key]) => key.startsWith(CELL_KEY_PREFIX))
             .sort(([left], [right]) => left.localeCompare(right, undefined, { numeric: true }))
             .forEach(([key, serialized]) => {
-              applySharedCell(key, serialized);
+              const position = parseCellKey(key);
+              if (!position) return;
+              applySharedCell(key, serialized, false);
+              try {
+                const cell = serialized ? JSON.parse(serialized) as ICellData : null;
+                const { signature } = describeCellActivity(cell);
+                activitySignatures.set(`${position.row}:${position.column}`, signature);
+              } catch {
+                activitySignatures.set(`${key.slice(CELL_KEY_PREFIX.length)}`, 'empty');
+              }
             });
         } finally {
           applyingRemoteRef.current = false;
