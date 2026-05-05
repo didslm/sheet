@@ -4,9 +4,8 @@ import Editor from '@/components/Editor';
 
 export const dynamic = 'force-dynamic';
 
-export default async function SheetPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const sheet = await getSheet(id).catch(() => null);
+export default async function SheetPage({ params }: { params: { id: string } }) {
+  const sheet = await getSheet(params.id).catch(() => null);
   if (!sheet) notFound();
   return <Editor sheet={sheet} />;
 }
