@@ -1,23 +1,20 @@
 'use client';
 import { useEffect, useRef } from 'react';
 import * as Y from 'yjs';
-import { WebsocketProvider } from 'y-websocket';
+import YPartyKitProvider from 'y-partykit/provider';
+import '@univerjs/presets/lib/styles/preset-sheets-core.css';
 
 // Univer + Yjs binding
 //
-// MVP approach: render Univer, connect a Yjs doc to the server via y-websocket so the
-// underlying CRDT doc + persistence + presence pipeline is already wired. Cell-level
-// binding (turning every Univer mutation into a Y.Map op and vice versa) is the next
-// step — see ROADMAP. For now the doc syncs but Univer's local state is not yet
-// reflected into Y, so changes are visible only locally until the binding lands.
-//
-// To implement the binding:
-//   1. Subscribe to Univer's command service (onCommandExecuted) for SET_RANGE_VALUES etc.
+// MVP approach: render Univer, connect a Yjs doc to PartyKit. The CRDT doc + persistence
+// + presence pipeline is wired (PartyKit persists the doc in Durable Object storage).
+// Cell-level binding (Univer mutations <-> Y.Map ops) is the next step:
+//   1. Subscribe to Univer's command service (onCommandExecuted) for SET_RANGE_VALUES.
 //   2. Mirror cells into a Y.Map keyed by `${sheetId}!${row},${col}`.
-//   3. Observe the Y.Map and dispatch reverse commands when remote updates arrive.
-//   4. Use a transaction origin tag to prevent loops.
+//   3. Observe the Y.Map and dispatch reverse commands on remote updates.
+//   4. Use a transaction origin tag to prevent echo loops.
 
-export default function UniverSheet({ sheetId, wsUrl }: { sheetId: string; wsUrl: string }) {
+export default function UniverSheet({ sheetId, partyHost }: { sheetId: string; partyHost: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cleanupRef = useRef<() => void>(() => {});
 
@@ -26,30 +23,29 @@ export default function UniverSheet({ sheetId, wsUrl }: { sheetId: string; wsUrl
     let disposed = false;
 
     (async () => {
-      const { createUniver, LocaleType, merge } = await import('@univerjs/presets');
+      const { createUniver, LocaleType, merge, defaultTheme } = await import('@univerjs/presets');
       const { UniverSheetsCorePreset } = await import('@univerjs/presets/preset-sheets-core');
       const sheetsCoreEnUS = (await import('@univerjs/presets/preset-sheets-core/locales/en-US')).default;
-      await import('@univerjs/presets/lib/styles/preset-sheets-core.css');
 
       if (disposed || !containerRef.current) return;
 
       const { univerAPI } = createUniver({
         locale: LocaleType.EN_US,
         locales: { [LocaleType.EN_US]: merge({}, sheetsCoreEnUS) },
+        theme: defaultTheme,
         presets: [UniverSheetsCorePreset({ container: containerRef.current })],
       });
 
       univerAPI.createWorkbook({ name: 'Sheet' });
 
       const ydoc = new Y.Doc();
-      const provider = new WebsocketProvider(wsUrl, sheetId, ydoc);
+      const provider = new YPartyKitProvider(partyHost, sheetId, ydoc);
 
       // TODO: bind univerAPI <-> ydoc (see comment at top)
 
       cleanupRef.current = () => {
         provider.destroy();
         ydoc.destroy();
-        // univerAPI dispose: Univer presets currently has no top-level dispose; remount handles cleanup.
       };
     })();
 
@@ -57,7 +53,7 @@ export default function UniverSheet({ sheetId, wsUrl }: { sheetId: string; wsUrl
       disposed = true;
       cleanupRef.current();
     };
-  }, [sheetId, wsUrl]);
+  }, [sheetId, partyHost]);
 
   return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />;
 }

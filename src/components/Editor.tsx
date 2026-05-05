@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { Sheet, WS_URL } from '@/lib/api';
+import { Sheet, PARTY_HOST } from '@/lib/api';
 
 const UniverSheet = dynamic(() => import('./UniverSheet'), { ssr: false });
 
@@ -25,7 +25,7 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
         </button>
       </header>
       <div style={{ flex: 1, minHeight: 0 }}>
-        <UniverSheet sheetId={sheet.id} wsUrl={WS_URL} />
+        <UniverSheet sheetId={sheet.id} partyHost={PARTY_HOST} />
       </div>
     </div>
   );

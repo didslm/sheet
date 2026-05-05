@@ -1,14 +1,32 @@
 {
   "name": "opensheets",
-  "private": true,
   "version": "0.1.0",
-  "workspaces": ["apps/*"],
+  "private": true,
   "scripts": {
-    "dev:web": "npm run dev --workspace apps/web",
-    "dev:server": "npm run dev --workspace apps/server",
-    "expire": "tsx scripts/expire.ts"
+    "dev": "next dev -p 3001",
+    "dev:party": "partykit dev",
+    "build": "next build",
+    "start": "next start -p 3001",
+    "deploy:party": "partykit deploy",
+    "migrate": "tsx scripts/migrate.ts"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4",
+    "@univerjs/presets": "^0.5.4",
+    "nanoid": "^5.0.9",
+    "next": "^14.2.18",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "y-partykit": "^0.0.33",
+    "y-websocket": "^2.0.4",
+    "yjs": "^13.6.20"
   },
   "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "partykit": "^0.0.115",
+    "partysocket": "^1.1.18",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3"
   }

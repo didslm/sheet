@@ -2,71 +2,46 @@
 
 Free, open-source, donation-funded collaborative spreadsheets. Create a sheet with one click, share the link, collaborate in real time. Sheets auto-expire after 7–30 days.
 
-> Status: scaffold / MVP in progress. Not production-ready.
+> Status: scaffold / MVP. Cell-level Univer ↔ Yjs binding still TODO.
 
-## Why
-Google Sheets is great but requires a Google account and isn't open. OpenSheets is for quick, ephemeral, no-signup collaboration — funded entirely by donations.
-
-## Architecture
+## Architecture (free-tier ready)
 ```
-apps/
-  web/     Next.js 15 + Univer (spreadsheet UI)
-  server/  Fastify REST + y-websocket (Yjs CRDT realtime)
-scripts/
-  expire.ts  Cron job that purges expired sheets
+Browser ──HTTPS──▶ Vercel (Next.js + API routes)
+   │
+   └──WSS──────▶ PartyKit (y-partykit, Durable Object storage)
+                       │
+Vercel API ─SQL─▶ Neon Postgres (sheet metadata)
 ```
 
-| Concern         | Choice                              |
-|-----------------|-------------------------------------|
-| Spreadsheet UI  | [Univer](https://github.com/dream-num/univer) (Apache-2.0) |
-| Realtime        | Yjs + y-websocket (self-hosted)     |
-| Metadata DB     | Postgres                            |
-| Doc storage     | Filesystem (dev) / S3 or R2 (prod)  |
-| Hosting target  | Railway or Fly.io + Cloudflare R2   |
-| Donations       | Open Collective / Stripe link       |
+| Layer | Service | Free tier |
+|---|---|---|
+| Frontend + REST | Vercel (Next.js 14) | Hobby (non-commercial) |
+| Realtime + doc storage | PartyKit (`y-partykit`) | Free in beta |
+| Metadata DB | Neon Postgres | 500 MB |
+| Cron (expiry) | Vercel Cron | 1 daily job |
 
-## Data model
-- `sheets(id, created_at, last_edited_at, expires_at, ttl_days, view_token, size_bytes)`
-- Yjs binary doc snapshot per sheet, stored by `id`.
+See **[DEPLOY.md](./DEPLOY.md)** for step-by-step deploy.
 
 ## URLs
-- `/`              landing + "New sheet" button
+- `/`              landing + "New sheet"
 - `/s/:id`         editor (anyone with link can edit)
-- `/s/:id/view`    read-only (uses view_token)
-
-## Abuse guardrails
-- 10 sheet creations / IP / day
-- 100k cell cap, 5 MB doc cap
-- Cloudflare in front in production
-- No file uploads in v1
+- `/api/sheets`    POST create, GET `/api/sheets/:id` for metadata
 
 ## Local dev
 ```bash
-# 1. Postgres
-docker compose up -d
-# 2. Install
+cp .env.example .env.local   # fill DATABASE_URL with a Neon URL
 npm install
-# 3. Run server (Fastify + WS) and web in two terminals
-npm run dev --workspace apps/server
-npm run dev --workspace apps/web
+npm run dev:party            # PartyKit on :1999
+npm run dev                  # Next.js on :3001
 ```
 
-Open http://localhost:3000
-
-## Deploy
-See `DEPLOY.md` (TODO). Targets: Railway for app + managed Postgres, Cloudflare R2 for doc blobs.
-
 ## Roadmap
-- [x] Repo scaffold
-- [ ] Sheet create/load/persist via Yjs
-- [ ] Univer ⇄ Yjs binding (cell-level CRDT)
+- [x] Repo scaffold + Vercel/PartyKit/Neon wiring
+- [ ] Univer ⇄ Yjs cell-level binding
 - [ ] Read-only view tokens
-- [ ] Expiry cron + UI countdown
 - [ ] CSV import/export
-- [ ] Donation banner + Open Collective integration
-- [ ] Rate limiting + abuse caps
-- [ ] R2 blob storage adapter
-- [ ] Presence cursors + user colors
+- [ ] Donation banner
+- [ ] Presence cursors
 
 ## License
 MIT
