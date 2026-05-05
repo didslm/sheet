@@ -19,6 +19,16 @@ export async function createSheet(opts: { ttlDays?: number; title?: string } = {
   return res.json() as Promise<{ id: string; viewToken: string; ttlDays: number; title: string }>;
 }
 
+export async function updateSheetTitle(id: string, title: string) {
+  const res = await fetch(`/api/sheets/${id}`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ title }),
+  });
+  if (!res.ok) throw new Error(`update_title_failed_${res.status}`);
+  return res.json() as Promise<{ title: string }>;
+}
+
 // Server-side fetch (used by RSC). Pass an absolute base URL when called from the server.
 export async function getSheet(id: string, baseUrl?: string): Promise<Sheet | null> {
   const url = baseUrl ? `${baseUrl}/api/sheets/${id}` : `/api/sheets/${id}`;
