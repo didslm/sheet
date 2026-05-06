@@ -5,6 +5,7 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'OpenSheets — free, open, ephemeral spreadsheets',
   description: 'Create a temporary collaborative spreadsheet in one click. No account. Funded by donations.',
+  icons: { icon: '/logo.png' },
 };
 
 export const viewport: Viewport = {

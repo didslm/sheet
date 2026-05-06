@@ -6,7 +6,6 @@ import { Sheet, PARTY_HOST, updateSheetTitle } from '@/lib/api';
 import type { ActivitySummary, PresenceSummary } from './UniverSheet';
 import styles from './Editor.module.css';
 import {
-  TableCellsIcon,
   ClockIcon,
   LinkIcon,
   CheckIcon,
@@ -93,7 +92,7 @@ export default function Editor({ sheet }: { sheet: Sheet }) {
       <header className={styles.header}>
         <div className={styles.headerMain}>
           <a href="/" className={styles.brand} aria-label="OpenSheets home">
-            <TableCellsIcon width={20} height={20} stroke="#fff" strokeWidth={1.8} />
+            <img src="/logo.png" alt="" />
           </a>
 
           <div className={styles.titleColumn}>

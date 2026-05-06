@@ -22,17 +22,19 @@
 }
 
 .logo {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  background: var(--green);
-  color: #fff;
+  width: 36px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
-  font-size: 16px;
-  letter-spacing: -0.02em;
+  flex: 0 0 auto;
+}
+
+.logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .brand {
@@ -331,6 +333,104 @@
 
 .feet a { color: var(--text-3); }
 .feet a:hover { color: var(--blue); }
+
+.donate {
+  width: 100%;
+  max-width: 720px;
+  margin: 48px auto 0;
+  padding: 28px clamp(20px, 4vw, 32px);
+  background: var(--bg);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.donateHead {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.donateTitle {
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text);
+  margin: 0;
+}
+
+.donateSub {
+  font-size: 14px;
+  color: var(--text-3);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.donateRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.donateAmount {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  padding: 12px 4px;
+  min-height: 44px;
+  font-weight: 500;
+  font-size: 14px;
+  border-radius: 4px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  cursor: pointer;
+}
+
+.donateAmount:hover {
+  background: #fff8e1;
+  border-color: #f0c419;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.donatePrimary {
+  background: #003087;
+  border-color: #003087;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 22px;
+  min-height: 44px;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.donatePrimary:hover {
+  background: #001f5c;
+  color: #fff;
+  text-decoration: none;
+}
+
+.donateNote {
+  font-size: 12px;
+  color: var(--text-3);
+  margin: 0;
+}
+
+@media (max-width: 600px) {
+  .donateRow { grid-template-columns: repeat(2, 1fr); }
+  .donate { margin-top: 32px; padding: 20px; }
+}
 
 @media (max-width: 600px) {
   .topbar { padding: 8px 14px; }

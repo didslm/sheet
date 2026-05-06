@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSheet } from '@/lib/api';
 import styles from './page.module.css';
-import { TableCellsIcon, ArrowRightIcon } from '@/components/icons';
 
 const TTL_CHOICES = [
   { value: 7, label: '7 days' },
@@ -35,13 +34,13 @@ export default function Home() {
       <header className={styles.topbar}>
         <div className={styles.brandLockup}>
           <span className={styles.logo} aria-hidden="true">
-            <TableCellsIcon width={20} height={20} stroke="#fff" strokeWidth={1.8} />
+            <img src="/logo.png" alt="" />
           </span>
           <span className={styles.brand}>OpenSheets</span>
         </div>
         <nav className={styles.topRight}>
           <a className={styles.topLink} href="https://github.com/">GitHub</a>
-          <a className={styles.topLink} href="https://opencollective.com/">Donate</a>
+          <a className={styles.topLink} href="https://paypal.me/diarslm">Donate</a>
         </nav>
       </header>
 
@@ -85,11 +84,39 @@ export default function Home() {
 
           {error && <p className={styles.error}>Error: {error}</p>}
         </form>
+
+        <aside className={styles.donate}>
+          <div className={styles.donateHead}>
+            <h3 className={styles.donateTitle}>Keep OpenSheets free</h3>
+            <p className={styles.donateSub}>
+              No accounts, no ads, no upsell. If it&rsquo;s useful, a small donation
+              helps cover hosting and keeps it that way.
+            </p>
+          </div>
+          <div className={styles.donateRow} role="group" aria-label="Donation amount">
+            <a className={styles.donateAmount} href="https://paypal.me/diarslm/3" target="_blank" rel="noopener noreferrer">€3</a>
+            <a className={styles.donateAmount} href="https://paypal.me/diarslm/5" target="_blank" rel="noopener noreferrer">€5</a>
+            <a className={styles.donateAmount} href="https://paypal.me/diarslm/10" target="_blank" rel="noopener noreferrer">€10</a>
+            <a className={styles.donateAmount} href="https://paypal.me/diarslm/25" target="_blank" rel="noopener noreferrer">€25</a>
+          </div>
+          <a
+            className={styles.donatePrimary}
+            href="https://paypal.me/diarslm"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <span>Donate any amount via PayPal</span>
+            <span aria-hidden="true">→</span>
+          </a>
+          <p className={styles.donateNote}>
+            Goes directly to <strong>@diarslm</strong> on PayPal.
+          </p>
+        </aside>
       </section>
 
       <footer className={styles.feet}>
         <span>© OpenSheets — runs on donations</span>
-        <a href="https://opencollective.com/">Donate</a>
+        <a href="https://paypal.me/diarslm">Donate</a>
         <a href="https://github.com/">Source</a>
       </footer>
     </main>
