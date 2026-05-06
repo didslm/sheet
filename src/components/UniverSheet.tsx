@@ -234,6 +234,7 @@ export default function UniverSheet(
         MenuItemType,
         RibbonStartGroup,
       } = await import('@univerjs/ui');
+      const { IRenderManagerService } = await import('@univerjs/engine-render');
 
       const ydoc = new Y.Doc();
       const provider = new YPartyKitProvider(partyHost, sheetId, ydoc);
@@ -376,6 +377,55 @@ export default function UniverSheet(
       const workbook = univerAPI.createWorkbook(initialWorkbookData as Parameters<typeof univerAPI.createWorkbook>[0]) as SerializableWorkbook;
       const worksheet = workbook.getActiveSheet();
       const coreWorksheet = worksheet.getSheet();
+
+      // Make the canvas scrollbars finger-friendly on touch devices.
+      try {
+        const isCoarsePointer =
+          typeof window !== 'undefined' &&
+          window.matchMedia &&
+          window.matchMedia('(pointer: coarse)').matches;
+        if (isCoarsePointer) {
+          const injector = (univer as unknown as { __getInjector(): { get<T>(id: unknown): T } }).__getInjector();
+          const renderManager = injector.get<{
+            getRenderById(id: string): {
+              scene?: {
+                getViewports(): Array<{
+                  getScrollBar(): null | {
+                    barSize: number;
+                    minThumbSizeH?: number;
+                    minThumbSizeV?: number;
+                  };
+                  resetCanvasSizeAndUpdateScroll?(): void;
+                }>;
+              };
+            } | null;
+          }>(IRenderManagerService);
+
+          const applyTouchScrollbar = () => {
+            const render = renderManager.getRenderById(workbook.getId());
+            const viewports = render?.scene?.getViewports?.() ?? [];
+            let touched = false;
+            viewports.forEach((vp) => {
+              const bar = vp.getScrollBar?.();
+              if (!bar) return;
+              bar.barSize = 22;
+              bar.minThumbSizeH = 60;
+              bar.minThumbSizeV = 60;
+              vp.resetCanvasSizeAndUpdateScroll?.();
+              touched = true;
+            });
+            return touched;
+          };
+
+          if (!applyTouchScrollbar()) {
+            // Scrollbars are created lazily after first layout pass — retry shortly.
+            window.setTimeout(applyTouchScrollbar, 200);
+            window.setTimeout(applyTouchScrollbar, 800);
+          }
+        }
+      } catch (error) {
+        console.error('[UniverSheet] failed to enlarge touch scrollbar', error);
+      }
 
       const toCellKey = (row: number, column: number) => `${CELL_KEY_PREFIX}${row}:${column}`;
       const publishPresence = (editing: EditingCell | null) => {
