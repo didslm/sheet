@@ -236,6 +236,12 @@ export default function UniverSheet(
         MenuItemType,
         RibbonStartGroup,
       } = await import('@univerjs/ui');
+      const {
+        AddConditionalRuleMutation,
+        DeleteConditionalRuleMutation,
+        MoveConditionalRuleMutation,
+        SetConditionalRuleMutation,
+      } = await import('@univerjs/sheets-conditional-formatting');
       const { IRenderManagerService } = await import('@univerjs/engine-render');
 
       const ydoc = new Y.Doc();
@@ -281,6 +287,10 @@ export default function UniverSheet(
         SetColDataCommand.id,
         SetWorksheetRangeThemeStyleCommand.id,
         DeleteWorksheetRangeThemeStyleCommand.id,
+        AddConditionalRuleMutation.id,
+        DeleteConditionalRuleMutation.id,
+        MoveConditionalRuleMutation.id,
+        SetConditionalRuleMutation.id,
       ]);
       const localPresenceUser = getPresenceUser(ydoc.clientID);
       const applyingRemoteRef = { current: false };
