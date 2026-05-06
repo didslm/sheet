@@ -191,6 +191,8 @@ export default function UniverSheet(
       const { createUniver, LocaleType, merge, defaultTheme } = await import('@univerjs/presets');
       const { UniverSheetsCorePreset } = await import('@univerjs/presets/preset-sheets-core');
       const sheetsCoreEnUS = (await import('@univerjs/presets/preset-sheets-core/locales/en-US')).default;
+      const { UniverSheetsConditionalFormattingPreset } = await import('@univerjs/presets/preset-sheets-conditional-formatting');
+      const sheetsCFEnUS = (await import('@univerjs/presets/preset-sheets-conditional-formatting/locales/en-US')).default;
       const {
         AddWorksheetMergeCommand,
         AddWorksheetMergeAllCommand,
@@ -347,9 +349,12 @@ export default function UniverSheet(
 
       const { univer, univerAPI } = createUniver({
         locale: LocaleType.EN_US,
-        locales: { [LocaleType.EN_US]: merge({}, sheetsCoreEnUS) },
+        locales: { [LocaleType.EN_US]: merge({}, sheetsCoreEnUS, sheetsCFEnUS) },
         theme: defaultTheme,
-        presets: [UniverSheetsCorePreset({ container: containerRef.current })],
+        presets: [
+          UniverSheetsCorePreset({ container: containerRef.current }),
+          UniverSheetsConditionalFormattingPreset(),
+        ],
       });
 
       // Replace the merge dropdown with a one-click "merge all" button.
