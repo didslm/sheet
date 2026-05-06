@@ -28,6 +28,7 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
+  overflow: visible;
 }
 
 .logo img {
@@ -35,6 +36,8 @@
   height: 100%;
   object-fit: contain;
   display: block;
+  transform: scale(1.5);
+  transform-origin: center;
 }
 
 .brand {

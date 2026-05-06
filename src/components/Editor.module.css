@@ -42,6 +42,7 @@
   text-decoration: none;
   border-radius: 6px;
   transition: background 0.12s;
+  overflow: visible;
 }
 
 .brand img {
@@ -49,6 +50,8 @@
   height: 100%;
   object-fit: contain;
   display: block;
+  transform: scale(1.5);
+  transform-origin: center;
 }
 
 .brand:hover { background: var(--bg-3); }
