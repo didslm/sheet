@@ -4,6 +4,7 @@ import * as Y from 'yjs';
 import YPartyKitProvider from 'y-partykit/provider';
 import type { ICellData, IDisposable, IRange } from '@univerjs/core';
 import '@univerjs/presets/lib/styles/preset-sheets-core.css';
+import '@univerjs/presets/lib/styles/preset-sheets-conditional-formatting.css';
 
 const CELL_KEY_PREFIX = 'cell:';
 const SNAPSHOT_KEY = 'workbookSnapshot';
