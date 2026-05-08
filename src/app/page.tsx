@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSheet } from '@/lib/api';
 import styles from './page.module.css';
@@ -13,11 +13,22 @@ const TTL_CHOICES = [
   { value: 60, label: '60 days' },
 ];
 
+const DONATE_AMOUNTS = [3, 5, 10, 25];
+
+function formatExpiry(days: number) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  return `${String(d.getDate()).padStart(2,'0')} ${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+
 export default function Home() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ttl, setTtl] = useState(14);
+
+  const expiry = useMemo(() => formatExpiry(ttl), [ttl]);
 
   async function onCreate() {
     setLoading(true);
@@ -41,28 +52,50 @@ export default function Home() {
           <span className={styles.brand}>OpenSheets</span>
         </div>
         <nav className={styles.topRight}>
-          <a className={styles.topLink} href={REPO_URL} target="_blank" rel="noopener noreferrer">GitHub</a>
-          <a className={styles.topLink} href="https://paypal.me/diarslm">Donate</a>
+          <a className={styles.topLink} href="https://paypal.me/diarslm" target="_blank" rel="noopener noreferrer">Donate</a>
         </nav>
       </header>
 
       <section className={styles.hero}>
-        <span className={styles.eyebrow}>Free · Open source · No account</span>
-        <h1 className={styles.headline}>Spreadsheets that quietly disappear.</h1>
-        <p className={styles.lede}>
-          Create a collaborative spreadsheet in one click, share the link, work together in real time.
-          The sheet auto-deletes after the lifetime you choose.
-        </p>
+        <div className={styles.intro}>
+          <span className={styles.eyebrow}>Free, public, no account</span>
+          <h1 className={styles.headline}>Create a collaborative spreadsheet and share it instantly.</h1>
+          <p className={styles.lede}>
+            OpenSheets is a simple temporary spreadsheet for quick collaboration. Open one,
+            send the link, edit together, and let it disappear on its own when its time is up.
+          </p>
+
+          <div className={styles.highlights}>
+            <div className={styles.highlight}>
+              <p className={styles.highlightTitle}>Fast</p>
+              <p className={styles.highlightText}>Start a sheet in one click and send the link immediately.</p>
+            </div>
+            <div className={styles.highlight}>
+              <p className={styles.highlightTitle}>Shared</p>
+              <p className={styles.highlightText}>Everyone with the link can edit in real time.</p>
+            </div>
+            <div className={styles.highlight}>
+              <p className={styles.highlightTitle}>Temporary</p>
+              <p className={styles.highlightText}>Choose the sheet lifetime up front and let it clean itself up.</p>
+            </div>
+          </div>
+        </div>
 
         <form
-          className={styles.dialog}
+          className={styles.createCard}
           onSubmit={(e) => { e.preventDefault(); onCreate(); }}
+          aria-label="Create a spreadsheet"
         >
-          <h2 className={styles.dialogTitle}>Create a new spreadsheet</h2>
-          <p className={styles.dialogSub}>Pick how long the sheet should exist before auto-deletion.</p>
+          <div className={styles.cardHead}>
+            <span className={styles.cardEyebrow}>New sheet</span>
+            <h2 className={styles.cardTitle}>Create a spreadsheet</h2>
+            <p className={styles.cardSub}>
+              Pick how long it should live, then open it and start collaborating.
+            </p>
+          </div>
 
           <div className={styles.field}>
-            <span className={styles.fieldLabel}>Auto-delete after</span>
+            <span className={styles.fieldLabel}>Lifespan</span>
             <div className={styles.ttlGroup} role="group" aria-label="Sheet lifespan">
               {TTL_CHOICES.map((choice) => (
                 <button
@@ -78,7 +111,15 @@ export default function Home() {
             </div>
           </div>
 
-          <div className={styles.dialogActions}>
+          <div className={styles.meta}>
+            <div>
+              <span className={styles.metaLabel}>Expires on</span>
+              <span className={styles.metaValue}>{expiry}</span>
+            </div>
+            <div className={styles.metaNote}>This sheet will be removed automatically after the selected lifetime.</div>
+          </div>
+
+          <div className={styles.cardActions}>
             <button type="submit" className={styles.btnPrimary} disabled={loading}>
               {loading ? 'Creating…' : 'Create spreadsheet'}
             </button>
@@ -86,40 +127,45 @@ export default function Home() {
 
           {error && <p className={styles.error}>Error: {error}</p>}
         </form>
+      </section>
 
-        <aside className={styles.donate}>
-          <div className={styles.donateHead}>
-            <h3 className={styles.donateTitle}>Keep OpenSheets free</h3>
-            <p className={styles.donateSub}>
-              No accounts, no ads, no upsell. If it&rsquo;s useful, a small donation
-              helps cover hosting and keeps it that way.
-            </p>
-          </div>
-          <div className={styles.donateRow} role="group" aria-label="Donation amount">
-            <a className={styles.donateAmount} href="https://paypal.me/diarslm/3" target="_blank" rel="noopener noreferrer">€3</a>
-            <a className={styles.donateAmount} href="https://paypal.me/diarslm/5" target="_blank" rel="noopener noreferrer">€5</a>
-            <a className={styles.donateAmount} href="https://paypal.me/diarslm/10" target="_blank" rel="noopener noreferrer">€10</a>
-            <a className={styles.donateAmount} href="https://paypal.me/diarslm/25" target="_blank" rel="noopener noreferrer">€25</a>
-          </div>
+      <section className={styles.support}>
+        <div className={styles.supportCopy}>
+          <h2 className={styles.supportTitle}>Open source and donation funded.</h2>
+          <p className={styles.supportBody}>
+            OpenSheets is free, open source, and ad-free on purpose. Hosting and
+            storage cost real money each month. If the tool was useful to you,
+            chip in what you can — that&rsquo;s how it stays free for the next person.
+          </p>
+        </div>
+        <div className={styles.supportActions} role="group" aria-label="Donation amount">
+            {DONATE_AMOUNTS.map((amt) => (
+              <a
+                key={amt}
+                className={styles.donateAmount}
+                href={`https://paypal.me/diarslm/${amt}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                €{amt}
+              </a>
+            ))}
           <a
             className={styles.donatePrimary}
             href="https://paypal.me/diarslm"
             target="_blank"
             rel="noopener noreferrer"
           >
-            <span>Donate any amount via PayPal</span>
-            <span aria-hidden="true">→</span>
+            Donate via PayPal
           </a>
-          <p className={styles.donateNote}>
-            Goes directly to <strong>@diarslm</strong> on PayPal.
-          </p>
-        </aside>
+        </div>
       </section>
 
       <footer className={styles.feet}>
-        <span>© OpenSheets — runs on donations</span>
-        <a href="https://paypal.me/diarslm">Donate</a>
-        <a href={REPO_URL} target="_blank" rel="noopener noreferrer">Source</a>
+        <span>© OpenSheets</span>
+        <div className={styles.footLinks}>
+          <a href="https://paypal.me/diarslm" target="_blank" rel="noopener noreferrer">Donate</a>
+        </div>
       </footer>
     </main>
   );
