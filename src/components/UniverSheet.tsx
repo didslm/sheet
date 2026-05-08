@@ -296,6 +296,7 @@ export default function UniverSheet(
       const localPresenceUser = getPresenceUser(ydoc.clientID);
       const applyingRemoteRef = { current: false };
       const initializedRef = { current: false };
+      const snapshotPublishTimeoutRef = { current: null as number | null };
       const remoteHighlights = new Map<number, RemoteHighlight>();
       const activitySignatures = new Map<string, string>();
       const emitActivity = (entry: Omit<ActivitySummary, 'id' | 'createdAt'>) => {
@@ -581,6 +582,16 @@ export default function UniverSheet(
         }
       };
 
+      const scheduleWorkbookSnapshotPublish = () => {
+        if (snapshotPublishTimeoutRef.current !== null) return;
+
+        snapshotPublishTimeoutRef.current = window.setTimeout(() => {
+          snapshotPublishTimeoutRef.current = null;
+          if (disposed || applyingRemoteRef.current) return;
+          publishWorkbookSnapshot();
+        }, 0);
+      };
+
       const publishRange = (range: PublishableRange) => {
         const { startRow, startColumn, endRow, endColumn } = range.getRange();
 
@@ -649,6 +660,7 @@ export default function UniverSheet(
 
         const { effectedRanges } = event as { effectedRanges: Array<ReturnType<typeof worksheet.getRange>> };
         effectedRanges.forEach((range) => publishRange(range));
+        scheduleWorkbookSnapshotPublish();
       });
 
       const onSheetEditEnded: IDisposable = univerAPI.addEvent(univerAPI.Event.SheetEditEnded, (event) => {
@@ -661,6 +673,7 @@ export default function UniverSheet(
         window.setTimeout(() => {
           if (disposed || applyingRemoteRef.current) return;
           publishCellAt(row, column);
+          scheduleWorkbookSnapshotPublish();
           recordActivity(row, column, 'You', coreWorksheet.getRange({ startRow: row, endRow: row, startColumn: column, endColumn: column }).getObjectValue({
             isIncludeStyle: true,
           }));
@@ -680,11 +693,7 @@ export default function UniverSheet(
         }
 
         if (!workbookSnapshotCommandIds.has(command.id)) return;
-
-        window.setTimeout(() => {
-          if (disposed || applyingRemoteRef.current) return;
-          publishWorkbookSnapshot();
-        }, 0);
+        scheduleWorkbookSnapshotPublish();
       });
 
       const handleCellStateChange = (event: Y.YMapEvent<string>, transaction: Y.Transaction) => {
@@ -738,6 +747,10 @@ export default function UniverSheet(
       handleInitialSync();
 
       cleanupRef.current = () => {
+        if (snapshotPublishTimeoutRef.current !== null) {
+          window.clearTimeout(snapshotPublishTimeoutRef.current);
+          snapshotPublishTimeoutRef.current = null;
+        }
         awareness.off('change', handleAwarenessChange);
         cellState.unobserve(handleCellStateChange);
         onSheetValueChanged.dispose();
