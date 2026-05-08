@@ -21,6 +21,8 @@ export const sql = ((strings: TemplateStringsArray, ...params: unknown[]) => {
   return neon(getDatabaseUrl())(strings, ...params);
 }) as ReturnType<typeof neon>;
 
+let schemaReady: Promise<void> | null = null;
+
 export async function ensureSchema() {
   await sql`
     CREATE TABLE IF NOT EXISTS sheets (
@@ -41,4 +43,15 @@ export async function ensureSchema() {
     )
   `;
   await sql`CREATE INDEX IF NOT EXISTS create_log_ip_time_idx ON create_log(ip, created_at)`;
+}
+
+export function ensureSchemaReady() {
+  if (!schemaReady) {
+    schemaReady = ensureSchema().catch((error) => {
+      schemaReady = null;
+      throw error;
+    });
+  }
+
+  return schemaReady;
 }

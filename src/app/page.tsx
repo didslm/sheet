@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation';
 import { createSheet } from '@/lib/api';
 import styles from './page.module.css';
 
+const REPO_URL = 'https://github.com/didslm/sheet';
+
 const TTL_CHOICES = [
   { value: 7, label: '7 days' },
   { value: 14, label: '14 days' },
@@ -39,7 +41,7 @@ export default function Home() {
           <span className={styles.brand}>OpenSheets</span>
         </div>
         <nav className={styles.topRight}>
-          <a className={styles.topLink} href="https://github.com/">GitHub</a>
+          <a className={styles.topLink} href={REPO_URL} target="_blank" rel="noopener noreferrer">GitHub</a>
           <a className={styles.topLink} href="https://paypal.me/diarslm">Donate</a>
         </nav>
       </header>
@@ -49,7 +51,7 @@ export default function Home() {
         <h1 className={styles.headline}>Spreadsheets that quietly disappear.</h1>
         <p className={styles.lede}>
           Create a collaborative spreadsheet in one click, share the link, work together in real time.
-          The sheet auto-deletes after the window of inactivity you choose.
+          The sheet auto-deletes after the lifetime you choose.
         </p>
 
         <form
@@ -57,7 +59,7 @@ export default function Home() {
           onSubmit={(e) => { e.preventDefault(); onCreate(); }}
         >
           <h2 className={styles.dialogTitle}>Create a new spreadsheet</h2>
-          <p className={styles.dialogSub}>Pick how long the sheet should stick around without activity.</p>
+          <p className={styles.dialogSub}>Pick how long the sheet should exist before auto-deletion.</p>
 
           <div className={styles.field}>
             <span className={styles.fieldLabel}>Auto-delete after</span>
@@ -117,7 +119,7 @@ export default function Home() {
       <footer className={styles.feet}>
         <span>© OpenSheets — runs on donations</span>
         <a href="https://paypal.me/diarslm">Donate</a>
-        <a href="https://github.com/">Source</a>
+        <a href={REPO_URL} target="_blank" rel="noopener noreferrer">Source</a>
       </footer>
     </main>
   );

@@ -1,14 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sql } from '@/lib/db';
+import { ensureSchemaReady, sql } from '@/lib/db';
 import { config } from '@/lib/config';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 // Vercel Cron hits this. Vercel sets the `Authorization: Bearer <CRON_SECRET>`
 // header automatically when CRON_SECRET env var is set.
 export async function GET(req: NextRequest) {
+  await ensureSchemaReady();
+
   const auth = req.headers.get('authorization');
-  if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET) {
+    return NextResponse.json({ error: 'cron_secret_not_configured' }, { status: 503 });
+  }
+
+  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
 

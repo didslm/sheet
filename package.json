@@ -2,13 +2,23 @@
   "name": "opensheets",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/didslm/sheet.git"
+  },
+  "homepage": "https://github.com/didslm/sheet",
+  "bugs": {
+    "url": "https://github.com/didslm/sheet/issues"
+  },
   "scripts": {
     "dev": "next dev -p 3001",
     "dev:party": "partykit dev",
     "build": "next build",
     "start": "next start -p 3001",
     "deploy:party": "partykit deploy",
-    "migrate": "tsx scripts/migrate.ts"
+    "migrate": "tsx scripts/migrate.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",

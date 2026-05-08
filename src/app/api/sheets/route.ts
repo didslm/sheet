@@ -1,18 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
-import { sql, ensureSchema } from '@/lib/db';
+import { sql, ensureSchemaReady } from '@/lib/db';
 import { config } from '@/lib/config';
 
 export const runtime = 'nodejs';
 
-let schemaReady: Promise<void> | null = null;
-function readySchema() {
-  if (!schemaReady) schemaReady = ensureSchema();
-  return schemaReady;
+function parseTtlDays(input: unknown) {
+  if (input == null) return config.defaultTtlDays;
+  if (typeof input !== 'number' || !Number.isFinite(input)) return null;
+  return Math.min(Math.max(1, Math.trunc(input)), config.maxTtlDays);
+}
+
+function parseCreateTitle(input: unknown) {
+  if (input == null) return 'Untitled sheet';
+  if (typeof input !== 'string') return null;
+
+  const title = input.trim().slice(0, 200);
+  return title || 'Untitled sheet';
 }
 
 export async function POST(req: NextRequest) {
-  await readySchema();
+  await ensureSchemaReady();
 
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
 
@@ -25,8 +33,16 @@ export async function POST(req: NextRequest) {
   }
 
   const body = (await req.json().catch(() => ({}))) as { ttlDays?: number; title?: string };
-  const ttlDays = Math.min(Math.max(1, body.ttlDays ?? config.defaultTtlDays), config.maxTtlDays);
-  const title = (body.title ?? 'Untitled sheet').slice(0, 200);
+  const ttlDays = parseTtlDays(body.ttlDays);
+  const title = parseCreateTitle(body.title);
+
+  if (ttlDays == null) {
+    return NextResponse.json({ error: 'invalid_ttl_days' }, { status: 400 });
+  }
+
+  if (title == null) {
+    return NextResponse.json({ error: 'invalid_title' }, { status: 400 });
+  }
 
   const id = nanoid(12);
   const viewToken = nanoid(16);
